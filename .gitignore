@@ -15,3 +15,7 @@
 # qemu-sptm build output (the submodule ships its own .gitignore too, but this
 # covers the common case of running `mkdir build` from the repo root)
 /qemu-sptm/build/
+
+__pycache__/
+/config-temp/
+/config.log

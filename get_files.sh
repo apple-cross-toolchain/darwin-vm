@@ -12,7 +12,8 @@ source "${SCRIPT_DIR}/dmgutil.sh"
 
 IPSW_BIN="ipsw_db"
 
-IOS_SYSROOT_URL="https://raw.githubusercontent.com/jprx/ios-cli-tools/refs/heads/main/prebuilt.tar.gz"
+IOS_SYSROOT_URL="https://raw.githubusercontent.com/jprx/ios-cli-tools/403c67799454bce0c05f17d91a4297052e98422a/prebuilt.tar.gz"
+IOS_SYSROOT_SHA256="8739f8926075f2143bfb214fcaeb01858cd7a02504c6dd4941b86eebb9b36221"
 IOS_SYSROOT_TARFILE="sysroot.tar.gz"
 IOS_SYSROOT="sysroot"
 
@@ -46,6 +47,10 @@ ensure_installed() {
 
     if [[ ! -x $(command -v "wget") ]]; then
         die "missing wget command (brew install wget)"
+    fi
+
+    if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+        die "missing sha256sum or shasum command"
     fi
 
     if [[ "$(uname)" != "Darwin" ]]; then
@@ -174,11 +179,20 @@ get_ramdisk() {
 }
 
 get_ios_sysroot() {
+    local actual_sha256
+
     if [[ -d "${IOS_SYSROOT}" ]]; then
         return
     fi
 
     wget "${IOS_SYSROOT_URL}" -O "${IOS_SYSROOT_TARFILE}"
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual_sha256="$(sha256sum "${IOS_SYSROOT_TARFILE}" | cut -d ' ' -f 1)"
+    else
+        actual_sha256="$(shasum -a 256 "${IOS_SYSROOT_TARFILE}" | cut -d ' ' -f 1)"
+    fi
+    [[ "${actual_sha256}" == "${IOS_SYSROOT_SHA256}" ]] || \
+        die "iOS sysroot archive checksum mismatch"
     tar xf "${IOS_SYSROOT_TARFILE}"
 }
 

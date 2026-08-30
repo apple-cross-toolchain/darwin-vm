@@ -16,7 +16,7 @@
   ```
 - **ldid**（github.com/ProcursusTeam/ldid）。用来替代 macOS 的 `codesign` 做临时（ad-hoc）签名；它的 `-S`/`-h` 输出格式跟 `codesign -s -` / `codesign -d -vvv` 是文本兼容的，可以直接复用原来的 grep 解析逻辑。
   ```
-  sudo apt-get install -y libplist-dev
+  sudo apt-get install -y build-essential libplist-dev libssl-dev pkg-config
   git clone https://github.com/ProcursusTeam/ldid.git
   cd ldid && make
   sudo cp ldid /usr/local/bin/
@@ -26,9 +26,11 @@
   sudo apt-get install -y linux-headers-$(uname -r)
   git clone https://github.com/linux-apfs/linux-apfs-rw.git
   cd linux-apfs-rw && make
-  sudo modprobe libcrc32c
+  sudo modprobe libcrc32c 2>/dev/null || true
   sudo insmod apfs.ko
   ```
+  某些内核会把 CRC32C 直接编译进内核，而不是提供 `libcrc32c` 模块；因此
+  `modprobe libcrc32c` 失败并不影响使用，但仍必须执行 `insmod apfs.ko`。
   `insmod` 不会在重启后自动生效——每次重启都要重新加载一次（或者自己配置 `depmod`/`modules-load.d`）。
 
 ## 具体改了什么

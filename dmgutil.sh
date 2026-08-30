@@ -7,7 +7,7 @@
 #
 #   git clone https://github.com/linux-apfs/linux-apfs-rw.git
 #   cd linux-apfs-rw && make
-#   sudo modprobe libcrc32c
+#   sudo modprobe libcrc32c 2>/dev/null || true
 #   sudo insmod apfs.ko
 #
 # This module's write support is experimental, which is fine for our purposes
@@ -29,7 +29,7 @@ dmg_attach() {
     if ! grep -q '^apfs ' /proc/modules; then
         echo "error: the 'apfs' kernel module isn't loaded." 1>&2
         echo "  get it from https://github.com/linux-apfs/linux-apfs-rw" 1>&2
-        echo "  build with 'make', then 'sudo modprobe libcrc32c && sudo insmod apfs.ko'" 1>&2
+        echo "  build with 'make', then load apfs.ko (libcrc32c may already be built into the kernel)" 1>&2
         return 1
     fi
 

@@ -23,7 +23,7 @@ Besides what the main README already lists (`jq`, `wget`), you'll also need:
   `codesign` for ad-hoc signing; its `-S`/`-h` output is textually
   compatible with `codesign -s -` / `codesign -d -vvv`.
   ```
-  sudo apt-get install -y libplist-dev
+  sudo apt-get install -y build-essential libplist-dev libssl-dev pkg-config
   git clone https://github.com/ProcursusTeam/ldid.git
   cd ldid && make
   sudo cp ldid /usr/local/bin/
@@ -36,9 +36,11 @@ Besides what the main README already lists (`jq`, `wget`), you'll also need:
   sudo apt-get install -y linux-headers-$(uname -r)
   git clone https://github.com/linux-apfs/linux-apfs-rw.git
   cd linux-apfs-rw && make
-  sudo modprobe libcrc32c
+  sudo modprobe libcrc32c 2>/dev/null || true
   sudo insmod apfs.ko
   ```
+  Some kernels build CRC32C in rather than providing `libcrc32c` as a module,
+  so a failed `modprobe libcrc32c` is harmless; `insmod apfs.ko` must still run.
   `insmod` doesn't persist across reboots — re-run it after every reboot (or
   set up `depmod`/`modules-load.d` yourself).
 

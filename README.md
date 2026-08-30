@@ -5,8 +5,7 @@ Run iOS/ macOS in Qemu. Supports emulating iPhone 17, 16, 15, 14, 13, and 12
 the kernel, edit the root filesystem, and run a root shell + custom programs.
 
 > **Running the firmware-prep step on Linux instead of a Mac?** See
-> [LINUX.md](LINUX.md) ([中文](LINUX.zh-CN.md)) for the extra dependencies and
-> patches needed — everything below still assumes macOS.
+> [LINUX.md](LINUX.md) ([中文](LINUX.zh-CN.md)) for the extra dependencies.
 
 Features:
 - Runs a lightweight debuggable iOS/ macOS (Darwin) system with custom filesystem.
@@ -53,7 +52,7 @@ libignition: 1:   force dylib root  : 0x0
 libignition: 1:   halt after stage  : n/a
 ...
 com.apple.xpc.launchd|1970-01-01 00:00:29.466851 <Notice>: Darwin Bootstrapper Version 7.0.0: Mon Aug 10 01:06:09 PDT 2026; root:libxpc_executables-3298.1.1~29/launchd/RELEASE_ARM64E
-com.apple.xpc.launchd|1970-01-01 00:00:29.484709 <Notice>: boot-args = rd=md0 serial=3 -v -noprogress wdt=-1 wlan-olyhal-abort
+com.apple.xpc.launchd|1970-01-01 00:00:29.484709 <Notice>: boot-args = rd=md0 serial=19 -v -noprogress wdt=-1 wlan-olyhal-abort trm_enabled=0 hidrm_enabled=0
 com.apple.xpc.launchd|1970-01-01 00:00:29.486795 <Notice>: Restore environment starting.
 com.apple.xpc.launchd|1970-01-01 00:00:29.487770 <Notice>: System Integrity Protection is engaged.
 com.apple.xpc.launchd|1970-01-01 00:00:29.904447 (system/com.jprx.bash) <Notice>: internal event: WILL_SPAWN, code = 0
@@ -119,7 +118,8 @@ times). This problem primarily affects `t8110` devices.
 # Setup
 
 You'll need a few things:
-1. Access to a Mac with `python`, `jq`, `wget`, and `ipsw`.
+1. A macOS or Linux machine with `python`, `jq`, `wget`, and `ipsw`. Linux
+   firmware preparation also needs the dependencies in [LINUX.md](LINUX.md).
 2. A machine to build and run `qemu` on - this can be different to the first machine.
 3. (optional) The URL of the IPSW (iOS or macOS) you want to use. You don't need to download the IPSW, you just need the URL. If you don't care which version you boot, we provide a default one.
 
@@ -131,21 +131,23 @@ You'll need a few things:
 How to get this running as fast as possible. See below sections for
 explanations of what these commands do/ how to customize things.
 
-Install dependencies:
+Install dependencies on macOS:
 
 ```
 brew install jq wget ipsw
 ```
 
+On Linux, install the dependencies described in [LINUX.md](LINUX.md).
+
 Clone this repo:
 
 ```
-git clone https://github.com/jprx/darwin-vm.git
+git clone https://github.com/apple-cross-toolchain/darwin-vm.git
 cd darwin-vm
 ```
 
-Download iOS files. Must run this on a Mac (see step 1 below to customize which
-iOS/ macOS version we install):
+Download iOS files (see step 1 below to customize which iOS/macOS version is
+installed):
 
 ```
 ./get_files.sh
@@ -178,7 +180,7 @@ terminal to quit Qemu.
 `get_files.sh` will download and patch the files we need from the remote IPSW URL.
 
 > [!IMPORTANT]
-> This step requires a Mac.
+> Linux hosts require the additional setup in [LINUX.md](LINUX.md).
 
 Run `get_files.sh` with no arguments to load a known working version of iOS. If
 you do have a specific IPSW you want to use:
@@ -212,7 +214,7 @@ Patching firmware/ramdisk.dmg
 /dev/disk8              EF57347C-0000-11AA-AA11-0030654
 /dev/disk8s1            41504653-0000-11AA-AA11-0030654 /private/var/folders/bn/mbs4rq1j2wnc3mkz3lv70hr80000gn/T/tmp.4UAV9eVIrO
 mounted firmware/ramdisk.dmg on /var/folders/bn/mbs4rq1j2wnc3mkz3lv70hr80000gn/T/tmp.4UAV9eVIrO
---2026-08-27 16:55:40--  https://raw.githubusercontent.com/jprx/ios-cli-tools/refs/heads/main/prebuilt.tar.gz
+--2026-08-27 16:55:40--  https://raw.githubusercontent.com/jprx/ios-cli-tools/403c67799454bce0c05f17d91a4297052e98422a/prebuilt.tar.gz
 Resolving raw.githubusercontent.com (raw.githubusercontent.com)...
 Connecting to raw.githubusercontent.com (raw.githubusercontent.com)... connected.
 HTTP request sent, awaiting response... 200 OK
@@ -232,7 +234,7 @@ done!
 ## 2. Fixing Permissions
 
 > [!IMPORTANT]
-> This step requires a Mac.
+> Linux hosts require the additional setup in [LINUX.md](LINUX.md).
 
 `firmware/ramdisk.dmg` holds the filesystem our VM is going to use.
 `get_files.sh` modified it to make the virtual machine immediately boot a root
@@ -287,14 +289,22 @@ Qemu will be located at `qemu-sptm/build/qemu-system-aarch64`.
 
 ## 4. Run the VM
 
-The `run.sh` script boots qemu using the files in the `firmware` directory. It
-takes no arguments:
+The `run.sh` script boots qemu using the files in the `firmware` directory:
 
 ```
 ./run.sh
 ```
 
+Any arguments are passed through to qemu. For example, use `./run.sh -S` to
+start the VM with its CPU paused.
+
+Serial mode 19 keeps console input/output enabled but prevents IOKit logs from
+overwriting the shell prompt.
+
 Use `ctrl+A` followed by `x` in the terminal to quit Qemu.
+
+To run unhosted iOS XCTest bundles, prepare an XCTest-enabled ramdisk as
+described in [`xctest/README.md`](xctest/README.md).
 
 ## 5. Add custom programs to the VM
 
@@ -528,10 +538,10 @@ rmdir mnt
 
 ## 8. Debugging the kernel
 
-Add `-s` to `args` in `run.sh` to expose a GDB debug server from qemu. You can
-use this to debug the running kernel or user programs. Add `-S` to make qemu
-wait for a debugger to attach before running any instructions; use this to
-start on the first instruction of SPTM.
+Pass `-s` to `run.sh` to expose a GDB debug server from qemu. You can use this
+to debug the running kernel or user programs. Pass `-S` to make qemu wait for a
+debugger to attach before running any instructions; use this to start on the
+first instruction of SPTM.
 
 You can use `lldb` with `gdb-remote localhost:1234` to attach to the GDB
 server, or compile/ acquire an `aarch64` GDB and use that. (the [Fractal
@@ -617,7 +627,7 @@ Or read the boot args:
   machineType = 0x00000000
   deviceTreeP = 0x0000000000000000
   deviceTreeLength = 0x00000000
-  CommandLine = "rd=md0 serial=3 -v -noprogress wdt=-1 wlan-olyhal-abort"
+  CommandLine = "rd=md0 serial=19 -v -noprogress wdt=-1 wlan-olyhal-abort trm_enabled=0 hidrm_enabled=0"
   bootFlags = 0x0000000000000000
   memSizeActual = 0x0000000000000000
 }
